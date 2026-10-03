@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/ksr/static/css/main.62d8e36d.css",
+    "main.js": "/ksr/static/js/main.e56d50c5.js",
+    "static/js/453.8c1521ce.chunk.js": "/ksr/static/js/453.8c1521ce.chunk.js",
+    "index.html": "/ksr/index.html",
+    "main.62d8e36d.css.map": "/ksr/static/css/main.62d8e36d.css.map",
+    "main.e56d50c5.js.map": "/ksr/static/js/main.e56d50c5.js.map",
+    "453.8c1521ce.chunk.js.map": "/ksr/static/js/453.8c1521ce.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.62d8e36d.css",
+    "static/js/main.e56d50c5.js"
+  ]
+}
