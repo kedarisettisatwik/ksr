@@ -1,18 +1,18 @@
 {
   "files": {
-    "main.css": "/ksr/static/css/main.ab228ab5.css",
-    "main.js": "/ksr/static/js/main.ef009a94.js",
+    "main.css": "/ksr/static/css/main.e4d0f756.css",
+    "main.js": "/ksr/static/js/main.c1bc5539.js",
     "static/js/453.8c1521ce.chunk.js": "/ksr/static/js/453.8c1521ce.chunk.js",
     "static/media/KSR_Banner_animation.mp4": "/ksr/static/media/KSR_Banner_animation.8036936fe7eceded5749.mp4",
     "static/media/KSR_logo.png": "/ksr/static/media/KSR_logo.1a261cb9844e3435a68a.png",
     "static/media/KSR_Banner.jpeg": "/ksr/static/media/KSR_Banner.f392af291611889e043f.jpeg",
     "index.html": "/ksr/index.html",
-    "main.ab228ab5.css.map": "/ksr/static/css/main.ab228ab5.css.map",
-    "main.ef009a94.js.map": "/ksr/static/js/main.ef009a94.js.map",
+    "main.e4d0f756.css.map": "/ksr/static/css/main.e4d0f756.css.map",
+    "main.c1bc5539.js.map": "/ksr/static/js/main.c1bc5539.js.map",
     "453.8c1521ce.chunk.js.map": "/ksr/static/js/453.8c1521ce.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.ab228ab5.css",
-    "static/js/main.ef009a94.js"
+    "static/css/main.e4d0f756.css",
+    "static/js/main.c1bc5539.js"
   ]
 }
