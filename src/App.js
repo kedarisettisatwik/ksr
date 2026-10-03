@@ -37,6 +37,8 @@ function App() {
   const [pickupName, setPickupName] = useState('');
   const [pickupTime, setPickupTime] = useState('');
   const [quantityDrafts, setQuantityDrafts] = useState({});
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [isInstalled, setIsInstalled] = useState(false);
   const total = cart.reduce((sum, item) => sum + itemTotal(item), 0);
 
   useEffect(() => {
@@ -47,6 +49,20 @@ function App() {
       setProducts(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
     }, () => toast.error('Could not load products.'));
     return () => { stopCategories(); stopProducts(); };
+  }, []);
+
+  useEffect(() => {
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    setIsInstalled(standalone);
+    const captureInstall = (event) => { event.preventDefault(); setInstallPrompt(event); };
+    const installed = () => { setIsInstalled(true); setInstallPrompt(null); toast.success('KSR app installed'); };
+    window.addEventListener('beforeinstallprompt', captureInstall);
+    window.addEventListener('appinstalled', installed);
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register(`${process.env.PUBLIC_URL}/service-worker.js`).catch(() => {});
+    return () => {
+      window.removeEventListener('beforeinstallprompt', captureInstall);
+      window.removeEventListener('appinstalled', installed);
+    };
   }, []);
 
   useEffect(() => {
@@ -171,6 +187,18 @@ function App() {
     toast.success('You’re signed out');
   };
 
+  const installApp = async () => {
+    if (isInstalled) { toast.success('KSR is already installed'); return; }
+    if (!installPrompt) {
+      toast('To install, use your browser menu and choose “Install app” or “Add to Home Screen”.', { duration: 5000, icon: '📲' });
+      return;
+    }
+    installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    if (choice?.outcome === 'accepted') toast.success('Installing KSR…');
+    setInstallPrompt(null);
+  };
+
   return (
     <main className="app-shell">
       <Toaster position="top-center" toastOptions={{ duration: 2600, style: { fontSize: '13px', borderRadius: '12px', maxWidth: '360px' } }} />
@@ -204,10 +232,11 @@ function App() {
           const quantityProduct = isQuantityProduct(product);
           const step = 1;
           const name = productName(product, language);
-          return <article className="product-card" key={product.id}><div className="product-image"><img src={product.Image || product.Image_URL || logo} alt={name} /></div><div className="product-info"><h3>{name}</h3><div className="product-bottom"><strong>{formatPrice(product.Price)}<small> / {quantityProduct ? 'kg' : 'unit'}</small></strong>{quantityProduct ? <div className="quantity-control"><input aria-label={`${name} quantity in grams`} type="number" min={product.Min || 1} step="1" value={quantityDrafts[product.id] ?? inCart?.quantity ?? product.Min ?? 1} onChange={(e) => setQuantityDrafts({ ...quantityDrafts, [product.id]: e.target.value })} onBlur={() => { if (inCart) setCartGrams(inCart, quantityDrafts[product.id] ?? inCart.quantity); }} /><span>g</span><button className="add-button" style={{"position":"absolute","bottom":"0px","transform":"translate(10px,-25px)"}} onClick={() => addQuantityProduct(product, quantityDrafts[product.id] ?? product.Min ?? 1)}>{inCart ? 'UPDATE' : 'ADD'} <span>＋</span></button></div> : inCart ? <div className="quantity-stepper"><button aria-label="Remove one" onClick={() => changeCart(product, -step)}>−</button><span>{inCart.quantity}</span><button aria-label="Add one" onClick={() => changeCart(product, step)}>+</button></div> : <button className="add-button" onClick={() => changeCart(product, step)}>ADD <span>＋</span></button>}</div></div></article>;
+          return <article className="product-card" key={product.id}><div className="product-image"><img src={product.Image || product.Image_URL || logo} alt={name} /></div><div className="product-info"><h3>{name}</h3><div className="product-bottom"><strong>{formatPrice(product.Price)}<small> / {quantityProduct ? 'kg' : 'unit'}</small></strong>{quantityProduct ? <div className="quantity-control"><input aria-label={`${name} quantity in grams`} type="number" min={product.Min || 1} step="1" value={quantityDrafts[product.id] ?? inCart?.quantity ?? product.Min ?? 1} onChange={(e) => setQuantityDrafts({ ...quantityDrafts, [product.id]: e.target.value })} onBlur={() => { if (inCart) setCartGrams(inCart, quantityDrafts[product.id] ?? inCart.quantity); }} /><span>g</span><button className="add-button" style={{"position":"absolute","bottom":"0px","transform":"translate(10px,-55px)"}} onClick={() => addQuantityProduct(product, quantityDrafts[product.id] ?? product.Min ?? 1)}>{inCart ? 'UPDATE' : 'ADD'} <span>＋</span></button></div> : inCart ? <div className="quantity-stepper"><button aria-label="Remove one" onClick={() => changeCart(product, -step)}>−</button><span>{inCart.quantity}</span><button aria-label="Add one" onClick={() => changeCart(product, step)}>+</button></div> : <button className="add-button" onClick={() => changeCart(product, step)}>ADD <span>＋</span></button>}</div></div></article>;
         })}</div> : <div className="empty-state"><span>🔎</span><strong>{products.length ? 'No products found' : 'Loading products…'}</strong><p>{products.length ? 'Try another search or category.' : 'Please check back in a moment.'}</p></div>}
       </section>
       <footer className="site-footer"><h2>Thank you for shopping with us</h2><div className="contact-details"><h3>Contact details</h3><p><strong>Shop name</strong><span>kedarisetti Subarao &amp; C.0</span></p><p><strong>Phone number</strong><a href="tel:9290864905">9290864905</a></p><p><strong>Address</strong><span>33-2-2, Main market, near glass house, sai baba temple</span></p><a className="map-link" href="https://maps.app.goo.gl/TSJ4AgxuxMzR8ffZ6" target="_blank" rel="noreferrer">Open location in Maps ↗</a></div></footer>
+      <button className="install-app-button" onClick={installApp} disabled={isInstalled}>{isInstalled ? 'App installed ✓' : 'Install as APP'}<span aria-hidden="true">⇩</span></button>
 
       {cartOpen && <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && setCartOpen(false)}><section className="sheet" role="dialog" aria-modal="true" aria-label="Your cart"><div className="sheet-header"><div><span className="eyebrow">YOUR SELECTION</span><h2>Your cart</h2></div><button className="close-button" onClick={() => setCartOpen(false)} aria-label="Close">×</button></div>{cart.length ? <><div className="cart-items">{cart.map((item) => <div className="cart-line" key={item.id}><div><strong>{item.name}</strong>{item.unit === 'g' ? <><small>{item.quantity} g · {formatPrice(item.price)} per kg</small><label className="cart-grams">Quantity in grams<input type="number" min={item.min || 1} step="1" value={quantityDrafts[item.id] ?? item.quantity} onChange={(e) => setQuantityDrafts({ ...quantityDrafts, [item.id]: e.target.value })} onBlur={(e) => { const value = Number(e.target.value); if (Number.isInteger(value) && value >= Number(item.min || 0)) setCartGrams(item, value); else { toast.error(`Enter at least ${item.min} grams.`); setQuantityDrafts({ ...quantityDrafts, [item.id]: item.quantity }); } }} /></label></> : <small>{item.quantity} unit × {formatPrice(item.price)}</small>}</div><div className="cart-line-total"><b>{formatPrice(itemTotal(item))}</b><button onClick={() => removeCartItem(item.id)}>Remove</button></div></div>)}</div><div className="cart-total"><span>Total</span><strong>{formatPrice(total)}</strong></div><div className="pickup-fields"><label>Name of person picking up<input value={pickupName} onChange={(e) => setPickupName(e.target.value)} placeholder="Enter pickup person's name" /></label><label>When will you come?<input type="datetime-local" value={pickupTime} onChange={(e) => setPickupTime(e.target.value)} /></label></div><button className="primary-button full-button" onClick={placeOrder}>Buy now · {formatPrice(total)}</button></> : <div className="empty-state"><span>🛍️</span><strong>Your cart is waiting</strong><p>Add a few favourites to get started.</p><button className="primary-button" onClick={() => setCartOpen(false)}>Explore products</button></div>}</section></div>}
       {profileOpen && <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && setProfileOpen(false)}><section className="sheet profile-sheet" role="dialog" aria-modal="true" aria-label="Your profile"><div className="sheet-header"><div><span className="eyebrow">YOUR KSR ACCOUNT</span><h2>Your profile</h2></div><button className="close-button" onClick={() => setProfileOpen(false)} aria-label="Close">×</button></div><div className="profile-phone"><span>♙</span><div><small>PHONE NUMBER</small><strong>{phone ? `+91 ${phone}` : 'Not added yet'}</strong></div></div><label className="language-row"><span>Preferred language</span><select aria-label="Change preferred language" value={language} onChange={(e) => changeLanguage(e.target.value)}>{languages.map((item) => <option key={item}>{item}</option>)}</select></label><div className="order-heading"><h3>Past orders</h3><span>{orders.length} orders</span></div>{orders.length ? <div className="orders-list">{orders.map((order, index) => <div className="order-card" key={order.id || index}><button className="order-summary" onClick={() => setExpandedOrder(expandedOrder === (order.id || index) ? null : order.id || index)}><span><strong>Order #{order.order_number || order.id || index + 1}</strong><small>{order.date || 'Date unavailable'} · {order.status || 'status unavailable'} · {order.items?.length || 0} items</small></span><span className="order-value">{formatPrice(order.total || order.amount || 0)} <b>{expandedOrder === (order.id || index) ? '−' : '+'}</b></span></button>{expandedOrder === (order.id || index) && <div className="order-details">{(order.items || []).map((item, itemIndex) => <div key={item.id || itemIndex}><span>{item.name} × {item.quantity}{item.unit === 'g' ? ' g' : ''}</span><strong>{formatPrice(itemTotal(item))}</strong></div>)}{!order.items?.length && <p>Order item details are not available.</p>}</div>}</div>)}</div> : <div className="empty-state compact"><span>🧾</span><strong>No past orders yet</strong><p>Your order history will show up here.</p></div>}<button className="logout-button" onClick={logout}>Log out</button></section></div>}
