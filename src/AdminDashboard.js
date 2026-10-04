@@ -472,7 +472,6 @@ function AdminDashboard() {
 
   const handleLogout = async () => {
     try {
-      if (notificationsEnabled) await disableDeviceNotifications();
       await signOut(auth);
       setActiveTab("dashboard");
       toast.success("You are signed out");
