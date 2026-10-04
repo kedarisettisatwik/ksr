@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   addDoc,
   arrayUnion,
+  arrayRemove,
   collection,
   deleteField,
   doc,
@@ -10,8 +11,12 @@ import {
   getFirestore,
   onSnapshot,
   runTransaction,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
   writeBatch,
 } from "firebase/firestore";
+import { deleteToken, getMessaging, getToken, isSupported, onMessage } from "firebase/messaging";
 import {
   getAuth,
   onAuthStateChanged,
@@ -147,6 +152,14 @@ function AdminDashboard() {
     typeof window !== "undefined" && "Notification" in window
       ? window.Notification.permission
       : "unsupported",
+  );
+  const [notificationsEnabled, setNotificationsEnabled] = useState(() =>
+    Boolean(
+      typeof window !== "undefined" &&
+      localStorage.getItem("ksr_fcm_token") &&
+      "Notification" in window &&
+      window.Notification.permission === "granted",
+    ),
   );
   const [authReady, setAuthReady] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -338,36 +351,6 @@ function AdminDashboard() {
               notificationBody,
               { duration: 7000 },
             );
-            if (
-              "Notification" in window &&
-              window.Notification.permission === "granted"
-            ) {
-              const showNotification = async () => {
-                const options = {
-                  body: notificationBody,
-                  tag: `ksr-order-${change.doc.id}`,
-                  data: { url: ADMIN_NOTIFICATION_URL },
-                };
-                try {
-                  const registration = await navigator.serviceWorker?.getRegistration();
-                  if (registration?.showNotification) {
-                    await registration.showNotification("New KSR order", options);
-                  } else {
-                    const deviceNotification = new window.Notification(
-                      "New KSR order",
-                      options,
-                    );
-                    deviceNotification.onclick = () => {
-                      window.focus();
-                      window.location.assign(ADMIN_NOTIFICATION_URL);
-                    };
-                  }
-                } catch (error) {
-                  console.error("Could not show device notification:", error);
-                }
-              };
-              showNotification();
-            }
           }
         });
       },
@@ -376,6 +359,33 @@ function AdminDashboard() {
       },
     );
   }, [currentUser]);
+
+  useEffect(() => {
+    let unsubscribe;
+    let active = true;
+    if (currentUser && notificationsEnabled) {
+      isSupported()
+        .then((supported) => {
+          if (!active || !supported) return;
+          unsubscribe = onMessage(getMessaging(app), (payload) => {
+            if (Notification.permission !== "granted") return;
+            const notification = new Notification(
+              payload.data?.title || "New KSR order",
+              { body: payload.data?.body || "A new order was placed." },
+            );
+            notification.onclick = () => {
+              window.focus();
+              window.location.assign(ADMIN_NOTIFICATION_URL);
+            };
+          });
+        })
+        .catch((error) => console.error("FCM foreground listener failed:", error));
+    }
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
+  }, [currentUser, notificationsEnabled]);
 
   const enableDeviceNotifications = async () => {
     if (!("Notification" in window)) {
@@ -389,16 +399,59 @@ function AdminDashboard() {
         toast.error("Allow notifications for this site in your browser settings.");
         return;
       }
-      if ("serviceWorker" in navigator) {
-        const workerUrl = new URL(
-          `${process.env.PUBLIC_URL || ""}/notification-worker.js`,
-          window.location.origin,
-        );
-        await navigator.serviceWorker.register(workerUrl.toString());
+      if (!currentUser) throw new Error("Sign in to the admin dashboard first.");
+      if (!process.env.REACT_APP_FIREBASE_VAPID_KEY) {
+        throw new Error("FCM VAPID public key is not configured.");
       }
+      if (!(await isSupported())) {
+        throw new Error("Firebase messaging is not supported in this browser.");
+      }
+      const workerUrl = new URL(
+        `${process.env.PUBLIC_URL || ""}/notification-worker.js`,
+        window.location.origin,
+      );
+      const registration = await navigator.serviceWorker.register(workerUrl.toString());
+      const messaging = getMessaging(app);
+      const token = await getToken(messaging, {
+        vapidKey: process.env.REACT_APP_FIREBASE_VAPID_KEY,
+        serviceWorkerRegistration: registration,
+      });
+      if (!token) throw new Error("Could not register this device for notifications.");
+      await setDoc(
+        doc(db, "AdminNotificationTokens", currentUser.uid),
+        {
+          uid: currentUser.uid,
+          email: currentUser.email || "",
+          tokens: arrayUnion(token),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+      localStorage.setItem("ksr_fcm_token", token);
+      setNotificationsEnabled(true);
       toast.success("Device notifications enabled");
-    } catch {
-      toast.error("Could not enable device notifications.");
+    } catch (error) {
+      toast.error(error.message || "Could not enable device notifications.");
+    }
+  };
+
+  const disableDeviceNotifications = async () => {
+    const token = localStorage.getItem("ksr_fcm_token");
+    try {
+      if (token && currentUser) {
+        await updateDoc(doc(db, "AdminNotificationTokens", currentUser.uid), {
+          tokens: arrayRemove(token),
+          updatedAt: serverTimestamp(),
+        });
+      }
+      if (notificationsEnabled && (await isSupported())) {
+        await deleteToken(getMessaging(app));
+      }
+      localStorage.removeItem("ksr_fcm_token");
+      setNotificationsEnabled(false);
+      toast.success("Device notifications disabled");
+    } catch (error) {
+      toast.error(error.message || "Could not disable device notifications.");
     }
   };
 
@@ -419,6 +472,7 @@ function AdminDashboard() {
 
   const handleLogout = async () => {
     try {
+      if (notificationsEnabled) await disableDeviceNotifications();
       await signOut(auth);
       setActiveTab("dashboard");
       toast.success("You are signed out");
@@ -1140,17 +1194,18 @@ function AdminDashboard() {
           {notificationPermission !== "unsupported" && (
             <button
               className="admin-notifications"
-              onClick={enableDeviceNotifications}
-              disabled={notificationPermission === "granted"}
+              onClick={notificationsEnabled ? disableDeviceNotifications : enableDeviceNotifications}
               title={
                 notificationPermission === "denied"
                   ? "Enable notifications in your browser site settings"
                   : undefined
               }
             >
-              {notificationPermission === "granted"
-                ? "🔔 Notifications on"
-                : "🔔 Enable notifications"}
+              {notificationsEnabled
+                ? "🔔 Disable notifications"
+                : notificationPermission === "denied"
+                  ? "🔔 Notifications blocked"
+                  : "🔔 Enable notifications"}
             </button>
           )}
           <button
