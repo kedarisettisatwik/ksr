@@ -16,7 +16,6 @@ import {
   updateDoc,
   writeBatch,
 } from "firebase/firestore";
-import { deleteToken, getMessaging, getToken, isSupported, onMessage } from "firebase/messaging";
 import {
   getAuth,
   onAuthStateChanged,
@@ -25,7 +24,12 @@ import {
 } from "firebase/auth";
 import { Link } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
-import { app } from "./firebase";
+import {
+  app,
+  generateFcmToken,
+  listenForFcmMessages,
+  removeFcmToken,
+} from "./firebase";
 import logo from "./assests/KSR_logo.png";
 import "./AdminDashboard.css";
 
@@ -364,10 +368,7 @@ function AdminDashboard() {
     let unsubscribe;
     let active = true;
     if (currentUser && notificationsEnabled) {
-      isSupported()
-        .then((supported) => {
-          if (!active || !supported) return;
-          unsubscribe = onMessage(getMessaging(app), (payload) => {
+      listenForFcmMessages((payload) => {
             if (Notification.permission !== "granted") return;
             const notification = new Notification(
               payload.data?.title || "New KSR order",
@@ -377,7 +378,10 @@ function AdminDashboard() {
               window.focus();
               window.location.assign(ADMIN_NOTIFICATION_URL);
             };
-          });
+          })
+        .then((stopListening) => {
+          if (active) unsubscribe = stopListening;
+          else stopListening();
         })
         .catch((error) => console.error("FCM foreground listener failed:", error));
     }
@@ -400,23 +404,7 @@ function AdminDashboard() {
         return;
       }
       if (!currentUser) throw new Error("Sign in to the admin dashboard first.");
-      if (!process.env.REACT_APP_FIREBASE_VAPID_KEY) {
-        throw new Error("FCM VAPID public key is not configured.");
-      }
-      if (!(await isSupported())) {
-        throw new Error("Firebase messaging is not supported in this browser.");
-      }
-      const workerUrl = new URL(
-        `${process.env.PUBLIC_URL || ""}/notification-worker.js`,
-        window.location.origin,
-      );
-      const registration = await navigator.serviceWorker.register(workerUrl.toString());
-      const messaging = getMessaging(app);
-      const token = await getToken(messaging, {
-        vapidKey: process.env.REACT_APP_FIREBASE_VAPID_KEY,
-        serviceWorkerRegistration: registration,
-      });
-      if (!token) throw new Error("Could not register this device for notifications.");
+      const token = await generateFcmToken();
       await setDoc(
         doc(db, "AdminNotificationTokens", currentUser.uid),
         {
@@ -428,6 +416,7 @@ function AdminDashboard() {
         { merge: true },
       );
       localStorage.setItem("ksr_fcm_token", token);
+      localStorage.setItem("ksr_fcm_uid", currentUser.uid);
       setNotificationsEnabled(true);
       toast.success("Device notifications enabled");
     } catch (error) {
@@ -437,17 +426,17 @@ function AdminDashboard() {
 
   const disableDeviceNotifications = async () => {
     const token = localStorage.getItem("ksr_fcm_token");
+    const tokenOwnerUid = localStorage.getItem("ksr_fcm_uid") || currentUser?.uid;
     try {
-      if (token && currentUser) {
-        await updateDoc(doc(db, "AdminNotificationTokens", currentUser.uid), {
+      if (token && tokenOwnerUid) {
+        await updateDoc(doc(db, "AdminNotificationTokens", tokenOwnerUid), {
           tokens: arrayRemove(token),
           updatedAt: serverTimestamp(),
         });
       }
-      if (notificationsEnabled && (await isSupported())) {
-        await deleteToken(getMessaging(app));
-      }
+      if (notificationsEnabled) await removeFcmToken();
       localStorage.removeItem("ksr_fcm_token");
+      localStorage.removeItem("ksr_fcm_uid");
       setNotificationsEnabled(false);
       toast.success("Device notifications disabled");
     } catch (error) {
