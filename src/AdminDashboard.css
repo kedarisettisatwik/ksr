@@ -888,6 +888,7 @@
     display: flex;
     gap: 13px;
     flex-wrap: wrap;
+    justify-content: space-evenly;
 }
 .admin-product-card {
     overflow: hidden;
