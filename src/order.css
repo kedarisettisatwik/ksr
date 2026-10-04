@@ -1,0 +1,141 @@
+.order-page {
+  width: min(100%, 400px);
+  min-height: 600px;
+  margin: 0 auto;
+  background: #f7f8f4;
+  color: #243329;
+  box-shadow: 0 0 34px #1c302012;
+  font-family: "DM Sans", Arial, sans-serif;
+}
+.order-banner {
+  display: block;
+  width: 100%;
+  height: 170px;
+  object-fit: cover;
+}
+.order-content {
+  padding: 22px 17px 18px;
+}
+.order-eyebrow {
+  color: #63815e;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+.order-content h1 {
+  margin: 5px 0 3px;
+  font: 600 26px "Playfair Display", Georgia, serif;
+}
+.order-reference {
+  margin: 0 0 17px;
+  color: #7e887d;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.order-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+.order-info-grid > div,
+.order-notes {
+  padding: 11px;
+  border: 1px solid #e6e9e2;
+  border-radius: 10px;
+  background: #fff;
+}
+.order-info-grid span,
+.order-notes > span {
+  display: block;
+  margin-bottom: 5px;
+  color: #858d82;
+  font-size: 9px;
+}
+.order-info-grid strong {
+  display: block;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.order-info-grid .order-status {
+  color: #457449;
+}
+.order-notes {
+  margin-top: 9px;
+}
+.order-notes p {
+  margin: 0;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.order-admin-notes {
+  display: grid;
+  gap: 6px;
+  margin: 9px 0 0;
+  padding-left: 17px;
+  color: #536453;
+  font-size: 10px;
+}
+.order-items-section {
+  margin-top: 20px;
+}
+.order-items-section h2 {
+  margin: 0 0 9px;
+  font: 600 18px "Playfair Display", Georgia, serif;
+}
+.order-items-list {
+  overflow: hidden;
+  border: 1px solid #e6e9e2;
+  border-radius: 10px;
+  background: #fff;
+}
+.order-line-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px;
+  border-bottom: 1px solid #eef0eb;
+  font-size: 11px;
+}
+.order-line-item:last-child {
+  border-bottom: 0;
+}
+.order-line-item > div {
+  display: grid;
+  gap: 4px;
+}
+.order-line-item span {
+  color: #7b8579;
+  font-size: 9px;
+}
+.order-total {
+  display: flex;
+  justify-content: space-between;
+  padding: 13px 2px;
+  font-size: 13px;
+}
+.order-message {
+  padding: 14px;
+  border-radius: 9px;
+  background: #fff;
+  color: #707b70;
+  font-size: 12px;
+}
+.order-error {
+  color: #a53e35;
+}
+.order-footer {
+  margin-top: 12px;
+  padding: 17px 0 4px;
+  border-top: 1px solid #e5e9e0;
+  text-align: center;
+}
+.order-footer p {
+  margin: 0 0 8px;
+  font: 600 15px "Playfair Display", Georgia, serif;
+}
+.order-footer a {
+  color: #426c46;
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: none;
+}

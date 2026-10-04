@@ -433,7 +433,9 @@ button {
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
-    overflow: hidden;
+    overflow: hidden;    
+    transform: scale(1.15);
+    transform-origin: left top;
 }
 .product-bottom {
     display: flex;
@@ -445,6 +447,8 @@ button {
     font-size: 13px;
     color: var(--green);
     white-space: nowrap;
+    transform: scale(1.2);
+    transform-origin: left top;
 }
 .product-bottom > strong small {
     font-size: 8px;
@@ -954,7 +958,8 @@ footer img {
     font-weight: 600;
     color: #5f655b;
 }
-.pickup-fields input {
+.pickup-fields input,
+.pickup-fields textarea {
     height: 38px;
     width: 100%;
     border: 1px solid var(--line);
@@ -963,6 +968,12 @@ footer img {
     background: #fff;
     color: var(--ink);
     font-size: 11px;
+}
+.pickup-fields textarea {
+    min-height: 68px;
+    padding: 9px 10px;
+    resize: vertical;
+    font-family: inherit;
 }
 .cart-line > div {
     min-width: 0;
