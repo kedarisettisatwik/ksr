@@ -72,6 +72,7 @@ const PRODUCT_CSV_HEADERS = [
   "stock",
   "costingPrice",
   "Quantity (1) / Countable (0)",
+  "Min",
   "Image_URL",
   "category",
 ];
@@ -457,6 +458,7 @@ function AdminDashboard() {
           product.stock,
           product.costingPrice,
           product.Type === "Quantity" ? 1 : 0,
+          product.Min,
           product.Image_URL || product.Image,
           (Array.isArray(product.Category) ? product.Category : []).join("|"),
         ]
@@ -496,10 +498,11 @@ function AdminDashboard() {
         stock: column("stock"),
         cost: column("costingPrice", "costinPrice"),
         type: column("Quantity (1) / Countable (0)", "Quantity/Countable", "Type"),
+        min: column("Min"),
         image: column("Image_URL"),
         category: column("category"),
       };
-      if ([columns.english, columns.price, columns.stock, columns.cost, columns.type, columns.category].some((index) => index < 0)) {
+      if ([columns.english, columns.price, columns.stock, columns.cost, columns.type, columns.min, columns.category].some((index) => index < 0)) {
         throw new Error("CSV is missing required columns. Download a fresh template.");
       }
       const existingIds = new Set(adminProducts.map((product) => String(product.productID || product.id)));
@@ -517,13 +520,14 @@ function AdminDashboard() {
         const costingPrice = Number(value(columns.cost));
         const typeValue = value(columns.type).toLowerCase();
         const type = ["1", "quantity"].includes(typeValue) ? "Quantity" : "Countable";
+        const minimum = value(columns.min) === "" ? null : Number(value(columns.min));
         const categoryText = value(columns.category);
         const Category = categoryText
           .split(/[|;,]/)
           .map((item) => item.trim())
           .filter(Boolean);
         const Name_English = value(columns.english);
-        if (!Name_English || !Number.isFinite(price) || price < 0 || !Number.isInteger(stock) || stock < 0 || !Number.isFinite(costingPrice) || costingPrice < 0 || Category.length === 0) {
+        if (!Name_English || !Number.isFinite(price) || price < 0 || !Number.isInteger(stock) || stock < 0 || !Number.isFinite(costingPrice) || costingPrice < 0 || Category.length === 0 || (type === "Quantity" && (!Number.isInteger(minimum) || minimum <= 0))) {
           ignored += 1;
           return;
         }
@@ -540,6 +544,7 @@ function AdminDashboard() {
             costingPrice,
             Type: type,
             Category,
+            ...(type === "Quantity" ? { Min: minimum } : {}),
           },
         });
       });
@@ -558,6 +563,7 @@ function AdminDashboard() {
             ...productData,
             stock: deleteField(),
             costingPrice: deleteField(),
+            ...(isEdit && productData.Type !== "Quantity" ? { Min: deleteField() } : {}),
           };
           batch.set(
             doc(db, "Products", productID),
@@ -566,7 +572,12 @@ function AdminDashboard() {
           );
           batch.set(
             doc(db, "productsAdmin", productID),
-            { ...productData, stock: data.stock, costingPrice: data.costingPrice },
+            {
+              ...productData,
+              stock: data.stock,
+              costingPrice: data.costingPrice,
+              ...(isEdit && productData.Type !== "Quantity" ? { Min: deleteField() } : {}),
+            },
             { merge: isEdit },
           );
         });
@@ -922,7 +933,7 @@ function AdminDashboard() {
         "",
         `your order ID : ${order.id}`,
         "",
-        `Track your order here : https://kedarisettisatwik.github.io/ksr/order/${order.id}`,
+        `Track your order here : https://kedarisettisatwik.github.io/ksr/#/order/${order.id}`,
         "",
         'Reply "yes" to confirm your order.',
       ].join("\n")
