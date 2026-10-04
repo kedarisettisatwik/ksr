@@ -8,6 +8,7 @@ import {
   getDoc,
   getDocs,
   getFirestore,
+  onSnapshot,
   runTransaction,
   writeBatch,
 } from "firebase/firestore";
@@ -25,6 +26,7 @@ import "./AdminDashboard.css";
 
 const db = getFirestore(app);
 const auth = getAuth(app);
+const ADMIN_NOTIFICATION_URL = "https://kedarisettisatwik.github.io/ksr/#/adminMode";
 const STATUSES = [
   "order still in review",
   "In Review",
@@ -141,6 +143,11 @@ const numberOrZero = (value) => Number.isFinite(Number(value)) ? Number(value) :
 
 function AdminDashboard() {
   const csvUploadRef = useRef(null);
+  const [notificationPermission, setNotificationPermission] = useState(() =>
+    typeof window !== "undefined" && "Notification" in window
+      ? window.Notification.permission
+      : "unsupported",
+  );
   const [authReady, setAuthReady] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [username, setUsername] = useState("");
@@ -295,6 +302,105 @@ function AdminDashboard() {
       setLoading(false);
     }
   }, [currentUser, loadData]);
+
+  useEffect(() => {
+    if (!currentUser) return undefined;
+    let initialSnapshot = true;
+    return onSnapshot(
+      collection(db, "Orders"),
+      (snapshot) => {
+        const liveOrders = snapshot.docs
+          .map((orderSnapshot) => {
+            const data = orderSnapshot.data();
+            return {
+              ...data,
+              id: orderSnapshot.id,
+              phone: data.phone_number || "",
+              ref: orderSnapshot.ref,
+            };
+          })
+          .sort((a, b) => pickupTimestamp(a) - pickupTimestamp(b));
+        setOrders(liveOrders);
+        setSelectedOrder((selected) =>
+          selected
+            ? liveOrders.find((order) => order.id === selected.id) || null
+            : null,
+        );
+        if (initialSnapshot) {
+          initialSnapshot = false;
+          return;
+        }
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === "added") {
+            const newOrder = change.doc.data();
+            const notificationBody = `New order received${newOrder.pickup_name ? ` from ${newOrder.pickup_name}` : ""}`;
+            toast.success(
+              notificationBody,
+              { duration: 7000 },
+            );
+            if (
+              "Notification" in window &&
+              window.Notification.permission === "granted"
+            ) {
+              const showNotification = async () => {
+                const options = {
+                  body: notificationBody,
+                  tag: `ksr-order-${change.doc.id}`,
+                  data: { url: ADMIN_NOTIFICATION_URL },
+                };
+                try {
+                  const registration = await navigator.serviceWorker?.getRegistration();
+                  if (registration?.showNotification) {
+                    await registration.showNotification("New KSR order", options);
+                  } else {
+                    const deviceNotification = new window.Notification(
+                      "New KSR order",
+                      options,
+                    );
+                    deviceNotification.onclick = () => {
+                      window.focus();
+                      window.location.assign(ADMIN_NOTIFICATION_URL);
+                    };
+                  }
+                } catch (error) {
+                  console.error("Could not show device notification:", error);
+                }
+              };
+              showNotification();
+            }
+          }
+        });
+      },
+      (error) => {
+        console.error("Live order notifications unavailable:", error);
+      },
+    );
+  }, [currentUser]);
+
+  const enableDeviceNotifications = async () => {
+    if (!("Notification" in window)) {
+      toast.error("Device notifications are not supported in this browser.");
+      return;
+    }
+    try {
+      const permission = await window.Notification.requestPermission();
+      setNotificationPermission(permission);
+      if (permission !== "granted") {
+        toast.error("Allow notifications for this site in your browser settings.");
+        return;
+      }
+      if ("serviceWorker" in navigator) {
+        const workerUrl = new URL(
+          `${process.env.PUBLIC_URL || ""}/notification-worker.js`,
+          window.location.origin,
+        );
+        await navigator.serviceWorker.register(workerUrl.toString());
+      }
+      toast.success("Device notifications enabled");
+    } catch {
+      toast.error("Could not enable device notifications.");
+    }
+  };
 
   const handleSignIn = async (event) => {
     event.preventDefault();
@@ -951,7 +1057,6 @@ function AdminDashboard() {
         "Shop Name : Kedarisetti Subarao & C.0",
         "Contact Number : 9290864905",
         "Address : 33-2-2, Main market, near glass house, sai baba temple",
-        `phone number : ${order.phone || order.phone_number}`,
         "",
         "Thanks for shopping with us.",
       ].join("\n");
@@ -1032,6 +1137,22 @@ function AdminDashboard() {
           <span>Store management</span>
         </Link>
         <div className="admin-header-actions">
+          {notificationPermission !== "unsupported" && (
+            <button
+              className="admin-notifications"
+              onClick={enableDeviceNotifications}
+              disabled={notificationPermission === "granted"}
+              title={
+                notificationPermission === "denied"
+                  ? "Enable notifications in your browser site settings"
+                  : undefined
+              }
+            >
+              {notificationPermission === "granted"
+                ? "🔔 Notifications on"
+                : "🔔 Enable notifications"}
+            </button>
+          )}
           <button
             className="admin-refresh"
             onClick={loadData}

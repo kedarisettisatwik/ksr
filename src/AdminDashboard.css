@@ -29,6 +29,7 @@
     object-fit: contain;
 }
 .admin-refresh,
+.admin-notifications,
 .admin-link-button {
     border: 1px solid #dfe5da;
     background: #fff;
@@ -40,6 +41,10 @@
 }
 .admin-refresh:disabled {
     opacity: 0.6;
+}
+.admin-notifications:disabled {
+    opacity: 0.7;
+    cursor: default;
 }
 .admin-heading {
     padding: 32px 0 24px;
