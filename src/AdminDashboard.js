@@ -1083,7 +1083,6 @@ function AdminDashboard() {
         "",
         `Track your order here : https://kedarisettisatwik.github.io/ksr/#/order/${order.id}`,
         "",
-        'Reply "yes" to confirm your order.',
       ].join("\n")
     : status === "Done"
     ? [

@@ -398,10 +398,17 @@ function App() {
       setCart([]);
       setOrderNotes("");
       setCartOpen(false);
-      toast.success(
-        "order submitted, You will receive whatsapp message, reply for confirmation",
-        { duration: 5000 },
-      );
+      const message = [
+        "Hi,",
+        "I placed order, review.",
+        "",
+        `Order ID : ${order.order_id}`,
+        `pickup name : ${order.pickup_name}`,
+        `pickup time : ${new Date(order.pickup_time).toLocaleString("en-IN")}`,
+        "",
+        "Thanks,",
+      ].join("\n");
+      window.location.href = `https://wa.me/919290864905?text=${encodeURIComponent(message)}`;
     } catch {
       toast.error("Could not submit your order. Please try again.");
     }
